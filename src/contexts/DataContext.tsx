@@ -39,7 +39,7 @@ interface DataContextType {
   addAttendanceRecord: (record: Omit<AttendanceRecord, 'id'>) => Promise<void>;
   
   // Notification counts
-  getUnreadCounts: () => {
+  getUnreadCounts: (userRole?: string) => {
     announcements: number;
     suggestions: number;
     uploads: number;
@@ -114,7 +114,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }));
       setResources(transformedResources);
       setUploads(uploadsResult.data || []);
-      setAnnouncements(announcementsResult.data || []);
+      
+      // Transform database fields to match Announcement interface
+      const transformedAnnouncements = (announcementsResult.data || []).map((announcement: any) => ({
+        id: announcement.id,
+        title: announcement.title,
+        content: announcement.content,
+        author: announcement.author,
+        createdAt: announcement.created_at,
+        target: announcement.target,
+        isRead: announcement.is_read
+      }));
+      setAnnouncements(transformedAnnouncements);
       setSuggestions(suggestionsResult.data || []);
       setAdmissions(admissionsResult.data || []);
       setAttendanceRecords(attendanceResult.data || []);
@@ -624,15 +635,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const getUnreadCounts = () => ({
-    announcements: announcements.filter(a => !a.isRead).length,
-    suggestions: suggestions.filter(s => !s.isRead).length,
-    uploads: uploads.filter(u => u.status === 'pending').length,
-    admissions: admissions.filter(a => a.status === 'pending').length,
-    attendance: attendanceRecords.length, // Show total attendance records for admin
-    resources: resources.filter(r => r.category === 'resource' && !viewedResources.includes(r.id)).length, // Show unviewed resources for teachers
-    timetable: resources.filter(r => r.category === 'timetable' && !viewedTimetables.includes(r.id)).length // Show unviewed timetable resources for teachers
-  });
+  const getUnreadCounts = (userRole?: string) => {
+    let relevantAnnouncements = announcements;
+    
+    // Filter announcements based on user role
+    if (userRole === 'teacher') {
+      relevantAnnouncements = announcements.filter(a => a.target === 'teachers' || a.target === 'both');
+    } else if (userRole === 'public') {
+      relevantAnnouncements = announcements.filter(a => a.target === 'public' || a.target === 'both');
+    }
+    
+    return {
+      announcements: relevantAnnouncements.filter(a => !a.isRead).length,
+      suggestions: suggestions.filter(s => !s.isRead).length,
+      uploads: uploads.filter(u => u.status === 'pending').length,
+      admissions: admissions.filter(a => a.status === 'pending').length,
+      attendance: attendanceRecords.length, // Show total attendance records for admin
+      resources: resources.filter(r => r.category === 'resource' && !viewedResources.includes(r.id)).length, // Show unviewed resources for teachers
+      timetable: resources.filter(r => r.category === 'timetable' && !viewedTimetables.includes(r.id)).length // Show unviewed timetable resources for teachers
+    };
+  };
 
   const getPublicAnnouncements = () => {
     return announcements.filter(a => a.target === 'public' || a.target === 'both');

@@ -20,7 +20,7 @@ const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) => {
   const [activeSection, setActiveSection] = useState('attendance');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  const unreadCounts = getUnreadCounts();
+  const unreadCounts = getUnreadCounts('teacher');
 
   const menuItems = [
     { id: 'attendance', label: 'Sign In', icon: MapPin },

@@ -20,7 +20,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [activeSection, setActiveSection] = useState('teachers');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
-  const unreadCounts = getUnreadCounts();
+  const unreadCounts = getUnreadCounts('admin');
 
   const menuItems = [
     { id: 'teachers', label: 'Teachers', icon: Users },
