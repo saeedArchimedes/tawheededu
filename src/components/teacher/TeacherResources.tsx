@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Image, Download, Search, Filter } from 'lucide-react';
+import { FileText, Image, Download, Search, Filter, Eye, X } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 
 const TeacherResources: React.FC = () => {
   const { resources, markResourceViewed } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'pdf' | 'image'>('all');
+  const [viewingResource, setViewingResource] = useState<any>(null);
 
   const resourceFiles = resources.filter(r => r.category === 'resource');
 
@@ -42,6 +43,14 @@ const TeacherResources: React.FC = () => {
       console.error('Download failed:', error);
       alert('Download failed. Please try again.');
     }
+  };
+
+  const handleViewResource = (resource: any) => {
+    setViewingResource(resource);
+  };
+
+  const closeViewModal = () => {
+    setViewingResource(null);
   };
 
   return (
@@ -145,13 +154,22 @@ const TeacherResources: React.FC = () => {
                       </div>
                     </div>
                     
-                    <button
-                      onClick={() => handleDownload(resource)}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center space-x-2"
-                    >
-                      <Download className="h-4 w-4" />
-                      <span>Download</span>
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleViewResource(resource)}
+                        className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center space-x-2"
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span>View</span>
+                      </button>
+                      <button
+                        onClick={() => handleDownload(resource)}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center space-x-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        <span>Download</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -163,6 +181,7 @@ const TeacherResources: React.FC = () => {
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
         <h4 className="text-lg font-semibold text-blue-900 mb-3">How to Use Resources</h4>
         <ul className="space-y-2 text-blue-800 text-sm">
+          <li>• Click the "View" button to preview resources before downloading</li>
           <li>• Click the "Download" button to save resources to your device</li>
           <li>• Use the search bar to quickly find specific resources</li>
           <li>• Filter by file type (PDF or Image) to narrow your results</li>
@@ -170,6 +189,74 @@ const TeacherResources: React.FC = () => {
           <li>• Downloaded files can be used offline for teaching preparation</li>
         </ul>
       </div>
+
+      {/* View Resource Modal */}
+      {viewingResource && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-4xl max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">View Resource</h3>
+              <button
+                onClick={closeViewModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <h4 className="text-lg font-medium text-gray-900 mb-2">{viewingResource.title}</h4>
+              <div className="flex items-center space-x-4 text-sm text-gray-500">
+                <span>{viewingResource.fileName}</span>
+                <span>Uploaded: {new Date(viewingResource.uploadedAt).toLocaleDateString()}</span>
+                <span className="capitalize bg-gray-100 px-2 py-1 rounded-full text-xs">
+                  {viewingResource.type}
+                </span>
+              </div>
+            </div>
+
+            <div className="border rounded-lg p-4 bg-gray-50">
+              {viewingResource.type === 'image' ? (
+                <img
+                  src={viewingResource.fileUrl}
+                  alt={viewingResource.title}
+                  className="max-w-full max-h-96 mx-auto"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling!.style.display = 'block';
+                  }}
+                />
+              ) : (
+                <iframe
+                  src={viewingResource.fileUrl}
+                  className="w-full h-96 border-0"
+                  title={viewingResource.title}
+                />
+              )}
+              <div style={{ display: 'none' }} className="text-center text-gray-500">
+                <p>Unable to preview this file type</p>
+                <p className="text-sm">Please download the file to view it</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 mt-4">
+              <button
+                onClick={() => handleDownload(viewingResource)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center space-x-2"
+              >
+                <Download className="h-4 w-4" />
+                <span>Download</span>
+              </button>
+              <button
+                onClick={closeViewModal}
+                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors duration-200"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

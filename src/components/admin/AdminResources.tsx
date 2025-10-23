@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, FileText, Image, Download, Trash2, Upload } from 'lucide-react';
+import { Plus, FileText, Image, Download, Trash2, Upload, Eye, X } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -12,6 +12,8 @@ const AdminResources: React.FC = () => {
     type: 'pdf' as 'pdf' | 'image'
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [viewingResource, setViewingResource] = useState<any>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,12 +44,28 @@ const AdminResources: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      setPreviewFile(file);
       if (file.type.startsWith('image/')) {
         setFormData(prev => ({ ...prev, type: 'image' }));
       } else {
         setFormData(prev => ({ ...prev, type: 'pdf' }));
       }
     }
+  };
+
+  const handlePreviewFile = () => {
+    if (previewFile) {
+      const url = URL.createObjectURL(previewFile);
+      window.open(url, '_blank');
+    }
+  };
+
+  const handleViewResource = (resource: any) => {
+    setViewingResource(resource);
+  };
+
+  const closeViewModal = () => {
+    setViewingResource(null);
   };
 
   const handleDownload = (resource: any) => {
@@ -122,10 +140,22 @@ const AdminResources: React.FC = () => {
                 </label>
                 {selectedFile && (
                   <div className="mt-4 p-4 bg-pink-50 border border-pink-200 rounded-lg">
-                    <p className="text-pink-800 font-semibold">{selectedFile.name}</p>
-                    <p className="text-pink-600 text-sm">
-                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-pink-800 font-semibold">{selectedFile.name}</p>
+                        <p className="text-pink-600 text-sm">
+                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handlePreviewFile}
+                        className="bg-pink-600 text-white px-3 py-1 rounded-lg hover:bg-pink-700 transition-colors duration-200 flex items-center space-x-1"
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span>Preview</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -210,6 +240,13 @@ const AdminResources: React.FC = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
+                    onClick={() => handleViewResource(resource)}
+                    className="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-50 transition-colors duration-200"
+                    title="View"
+                  >
+                    <Eye className="h-5 w-5" />
+                  </button>
+                  <button
                     onClick={() => handleDownload(resource)}
                     className="text-pink-600 hover:text-pink-800 p-2 rounded-lg hover:bg-pink-50 transition-colors duration-200"
                     title="Download"
@@ -229,6 +266,74 @@ const AdminResources: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* View Resource Modal */}
+      {viewingResource && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-4xl max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">View Resource</h3>
+              <button
+                onClick={closeViewModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <h4 className="text-lg font-medium text-gray-900 mb-2">{viewingResource.title}</h4>
+              <div className="flex items-center space-x-4 text-sm text-gray-500">
+                <span>{viewingResource.fileName}</span>
+                <span>Uploaded: {new Date(viewingResource.uploadedAt).toLocaleDateString()}</span>
+                <span className="capitalize bg-gray-100 px-2 py-1 rounded-full text-xs">
+                  {viewingResource.type}
+                </span>
+              </div>
+            </div>
+
+            <div className="border rounded-lg p-4 bg-gray-50">
+              {viewingResource.type === 'image' ? (
+                <img
+                  src={viewingResource.fileUrl}
+                  alt={viewingResource.title}
+                  className="max-w-full max-h-96 mx-auto"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling!.style.display = 'block';
+                  }}
+                />
+              ) : (
+                <iframe
+                  src={viewingResource.fileUrl}
+                  className="w-full h-96 border-0"
+                  title={viewingResource.title}
+                />
+              )}
+              <div style={{ display: 'none' }} className="text-center text-gray-500">
+                <p>Unable to preview this file type</p>
+                <p className="text-sm">Please download the file to view it</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 mt-4">
+              <button
+                onClick={() => handleDownload(viewingResource)}
+                className="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700 transition-colors duration-200 flex items-center space-x-2"
+              >
+                <Download className="h-4 w-4" />
+                <span>Download</span>
+              </button>
+              <button
+                onClick={closeViewModal}
+                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors duration-200"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

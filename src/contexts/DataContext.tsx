@@ -101,7 +101,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (admissionsResult.error) throw admissionsResult.error;
       if (attendanceResult.error) throw attendanceResult.error;
 
-      setResources(resourcesResult.data || []);
+      // Transform database fields to match Resource interface
+      const transformedResources = (resourcesResult.data || []).map((resource: any) => ({
+        id: resource.id,
+        title: resource.title,
+        fileName: resource.file_name,
+        fileUrl: resource.file_url,
+        type: resource.file_type,
+        uploadedBy: resource.uploaded_by,
+        uploadedAt: resource.uploaded_at,
+        category: resource.category
+      }));
+      setResources(transformedResources);
       setUploads(uploadsResult.data || []);
       setAnnouncements(announcementsResult.data || []);
       setSuggestions(suggestionsResult.data || []);

@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
-import { Calendar, Download, FileText, Image } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Calendar, Download, FileText, Image, Eye, X } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 
 const TeacherTimetable: React.FC = () => {
   const { resources, markTimetableViewed } = useData();
+  const [viewingTimetable, setViewingTimetable] = useState<any>(null);
 
   const timetables = resources
     .filter(r => r.category === 'timetable')
@@ -30,6 +31,14 @@ const TeacherTimetable: React.FC = () => {
       console.error('Download failed:', error);
       alert('Download failed. Please try again.');
     }
+  };
+
+  const handleViewTimetable = (timetable: any) => {
+    setViewingTimetable(timetable);
+  };
+
+  const closeViewModal = () => {
+    setViewingTimetable(null);
   };
 
   return (
@@ -104,13 +113,22 @@ const TeacherTimetable: React.FC = () => {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => handleDownload(timetable)}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center space-x-2"
-                    >
-                      <Download className="h-4 w-4" />
-                      <span>Download</span>
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleViewTimetable(timetable)}
+                        className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center space-x-2"
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span>View</span>
+                      </button>
+                      <button
+                        onClick={() => handleDownload(timetable)}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center space-x-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        <span>Download</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -118,6 +136,74 @@ const TeacherTimetable: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* View Timetable Modal */}
+      {viewingTimetable && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-4xl max-h-[90vh] overflow-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-gray-900">View Timetable</h3>
+              <button
+                onClick={closeViewModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="mb-4">
+              <h4 className="text-lg font-medium text-gray-900 mb-2">{viewingTimetable.title}</h4>
+              <div className="flex items-center space-x-4 text-sm text-gray-500">
+                <span>{viewingTimetable.fileName}</span>
+                <span>Uploaded: {new Date(viewingTimetable.uploadedAt).toLocaleDateString()}</span>
+                <span className="capitalize bg-gray-100 px-2 py-1 rounded-full text-xs">
+                  {viewingTimetable.type}
+                </span>
+              </div>
+            </div>
+
+            <div className="border rounded-lg p-4 bg-gray-50">
+              {viewingTimetable.type === 'image' ? (
+                <img
+                  src={viewingTimetable.fileUrl}
+                  alt={viewingTimetable.title}
+                  className="max-w-full max-h-96 mx-auto"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling!.style.display = 'block';
+                  }}
+                />
+              ) : (
+                <iframe
+                  src={viewingTimetable.fileUrl}
+                  className="w-full h-96 border-0"
+                  title={viewingTimetable.title}
+                />
+              )}
+              <div style={{ display: 'none' }} className="text-center text-gray-500">
+                <p>Unable to preview this file type</p>
+                <p className="text-sm">Please download the file to view it</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 mt-4">
+              <button
+                onClick={() => handleDownload(viewingTimetable)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center space-x-2"
+              >
+                <Download className="h-4 w-4" />
+                <span>Download</span>
+              </button>
+              <button
+                onClick={closeViewModal}
+                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors duration-200"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
