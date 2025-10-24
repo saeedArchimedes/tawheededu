@@ -113,7 +113,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         category: resource.category
       }));
       setResources(transformedResources);
-      setUploads(uploadsResult.data || []);
+      
+      // Transform database fields to match Upload interface
+      const transformedUploads = (uploadsResult.data || []).map((upload: any) => ({
+        id: upload.id,
+        teacherId: upload.teacher_id,
+        teacherName: upload.teacher_name,
+        type: upload.type,
+        fileName: upload.file_name,
+        fileUrl: upload.file_url,
+        uploadedAt: upload.uploaded_at,
+        status: upload.status,
+        comments: upload.comments,
+        grade: upload.grade
+      }));
+      setUploads(transformedUploads);
       
       // Transform database fields to match Announcement interface
       const transformedAnnouncements = (announcementsResult.data || []).map((announcement: any) => ({

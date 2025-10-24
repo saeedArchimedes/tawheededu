@@ -27,14 +27,23 @@ const AdminUploads: React.FC = () => {
   };
 
   const handleViewFile = (upload: any) => {
+    if (!upload.fileUrl) {
+      alert('File URL is not available. Please try again later.');
+      return;
+    }
     setViewingUpload(upload.id);
   };
 
   const handleDownloadFile = (upload: any) => {
     try {
+      if (!upload.fileUrl) {
+        alert('File URL is not available. Please try again later.');
+        return;
+      }
+      
       const link = document.createElement('a');
       link.href = upload.fileUrl;
-      link.download = upload.fileName;
+      link.download = upload.fileName || 'download';
       link.target = '_blank';
       document.body.appendChild(link);
       link.click();
@@ -377,6 +386,11 @@ const AdminUploads: React.FC = () => {
                           src={upload.fileUrl}
                           className="w-full h-96"
                           title={upload.fileName}
+                          onError={(e) => {
+                            console.error('Failed to load PDF:', e);
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.nextElementSibling!.style.display = 'block';
+                          }}
                         />
                       )}
                       
@@ -385,6 +399,11 @@ const AdminUploads: React.FC = () => {
                           src={upload.fileUrl}
                           alt={upload.fileName}
                           className="w-full h-auto max-h-96 object-contain"
+                          onError={(e) => {
+                            console.error('Failed to load image:', e);
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.nextElementSibling!.style.display = 'block';
+                          }}
                         />
                       )}
                       
@@ -425,6 +444,20 @@ const AdminUploads: React.FC = () => {
                           </button>
                         </div>
                       )}
+                      
+                      {/* Error fallback for failed file loads */}
+                      <div style={{ display: 'none' }} className="p-8 text-center">
+                        <FileText className="h-16 w-16 text-red-400 mx-auto mb-4" />
+                        <p className="text-red-600 mb-4">Unable to load file preview</p>
+                        <p className="text-gray-500 text-sm mb-4">The file may be corrupted or the URL is invalid</p>
+                        <button
+                          onClick={() => handleDownloadFile(upload)}
+                          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center space-x-2 mx-auto"
+                        >
+                          <Download className="h-4 w-4" />
+                          <span>Download to View</span>
+                        </button>
+                      </div>
                     </div>
 
                     {/* Admin Comments (if marked) */}
