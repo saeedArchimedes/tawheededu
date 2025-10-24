@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Resource, Upload, Announcement, Suggestion, AdmissionApplication, AttendanceRecord } from '@/types';
 import { supabase, TABLES, STORAGE_BUCKETS } from '@/lib/supabase';
+import { useAuth } from './AuthContext';
 
 interface DataContextType {
   // Resources
@@ -39,7 +40,7 @@ interface DataContextType {
   addAttendanceRecord: (record: Omit<AttendanceRecord, 'id'>) => Promise<void>;
   
   // Notification counts
-  getUnreadCounts: (userRole?: string) => {
+  getUnreadCounts: (userRole?: string, userId?: string) => {
     announcements: number;
     suggestions: number;
     uploads: number;
@@ -50,13 +51,20 @@ interface DataContextType {
   };
   getPublicAnnouncements: () => Announcement[];
   getUnreadPublicAnnouncements: () => Announcement[];
-  markResourceViewed: (resourceId: string) => Promise<void>;
-  markTimetableViewed: (timetableId: string) => Promise<void>;
+  markResourceViewed: (resourceId: string, userId?: string) => Promise<void>;
+  markTimetableViewed: (timetableId: string, userId?: string) => Promise<void>;
+  loadUserViewedResources: (userId: string) => Promise<void>;
+  loadAllTeachersViewedResources: () => Promise<void>;
+  refreshAllTeachersViewedResources: () => Promise<void>;
+  markAllResourcesAsViewed: (userId: string) => Promise<void>;
+  markAllTimetablesAsViewed: (userId: string) => Promise<void>;
+  markAllAnnouncementsAsRead: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { teachers } = useAuth();
   const [resources, setResources] = useState<Resource[]>([]);
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -65,12 +73,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [viewedResources, setViewedResources] = useState<string[]>([]);
   const [viewedTimetables, setViewedTimetables] = useState<string[]>([]);
+  const [userViewedResources, setUserViewedResources] = useState<{[userId: string]: string[]}>({});
+  const [userViewedTimetables, setUserViewedTimetables] = useState<{[userId: string]: string[]}>({});
   const [loading, setLoading] = useState(true);
 
   // Load all data from Supabase on mount
   useEffect(() => {
     loadAllData();
   }, []);
+
+  // Load viewed resources for all teachers when teachers list changes
+  useEffect(() => {
+    if (teachers.length > 0) {
+      console.log('Teachers list changed, loading viewed resources for all teachers:', teachers.length);
+      loadAllTeachersViewedResources();
+    }
+  }, [teachers]);
 
   const loadAllData = async () => {
     try {
@@ -617,15 +635,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const markResourceViewed = async (resourceId: string) => {
+  const markResourceViewed = async (resourceId: string, userId?: string) => {
     try {
       if (!viewedResources.includes(resourceId)) {
         const { error } = await supabase
           .from(TABLES.VIEWED_RESOURCES)
-          .insert([{ resource_id: resourceId }]);
+          .insert([{ 
+            resource_id: resourceId,
+            user_id: userId || 'anonymous'
+          }]);
 
         if (error) throw error;
         setViewedResources(prev => [...prev, resourceId]);
+        
+        // Update user-specific viewed resources
+        if (userId) {
+          setUserViewedResources(prev => ({
+            ...prev,
+            [userId]: [...(prev[userId] || []), resourceId]
+          }));
+        }
       }
     } catch (error) {
       console.error('Error marking resource viewed:', error);
@@ -633,15 +662,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const markTimetableViewed = async (timetableId: string) => {
+  const markTimetableViewed = async (timetableId: string, userId?: string) => {
     try {
       if (!viewedTimetables.includes(timetableId)) {
         const { error } = await supabase
           .from(TABLES.VIEWED_TIMETABLES)
-          .insert([{ resource_id: timetableId }]);
+          .insert([{ 
+            resource_id: timetableId,
+            user_id: userId || 'anonymous'
+          }]);
 
         if (error) throw error;
         setViewedTimetables(prev => [...prev, timetableId]);
+        
+        // Update user-specific viewed timetables
+        if (userId) {
+          setUserViewedTimetables(prev => ({
+            ...prev,
+            [userId]: [...(prev[userId] || []), timetableId]
+          }));
+        }
       }
     } catch (error) {
       console.error('Error marking timetable viewed:', error);
@@ -649,7 +689,179 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const getUnreadCounts = (userRole?: string) => {
+  const loadUserViewedResources = async (userId: string) => {
+    try {
+      const [viewedResourcesResult, viewedTimetablesResult] = await Promise.all([
+        supabase.from(TABLES.VIEWED_RESOURCES).select('resource_id').eq('user_id', userId),
+        supabase.from(TABLES.VIEWED_TIMETABLES).select('resource_id').eq('user_id', userId)
+      ]);
+
+      const viewedResourceIds = viewedResourcesResult.data?.map(v => v.resource_id) || [];
+      const viewedTimetableIds = viewedTimetablesResult.data?.map(v => v.resource_id) || [];
+
+      setUserViewedResources(prev => ({
+        ...prev,
+        [userId]: viewedResourceIds
+      }));
+
+      setUserViewedTimetables(prev => ({
+        ...prev,
+        [userId]: viewedTimetableIds
+      }));
+    } catch (error) {
+      console.error('Error loading user viewed resources:', error);
+    }
+  };
+
+  const loadAllTeachersViewedResources = async () => {
+    try {
+      if (teachers.length === 0) return;
+
+      console.log('Loading viewed resources for all teachers:', teachers.map(t => ({ id: t.id, name: t.name })));
+
+      // Load viewed resources for all teachers in parallel
+      const teacherPromises = teachers.map(async (teacher) => {
+        const [viewedResourcesResult, viewedTimetablesResult] = await Promise.all([
+          supabase.from(TABLES.VIEWED_RESOURCES).select('resource_id').eq('user_id', teacher.id),
+          supabase.from(TABLES.VIEWED_TIMETABLES).select('resource_id').eq('user_id', teacher.id)
+        ]);
+
+        const viewedResourceIds = viewedResourcesResult.data?.map(v => v.resource_id) || [];
+        const viewedTimetableIds = viewedTimetablesResult.data?.map(v => v.resource_id) || [];
+
+        return {
+          teacherId: teacher.id,
+          teacherName: teacher.name,
+          viewedResourceIds,
+          viewedTimetableIds
+        };
+      });
+
+      const results = await Promise.all(teacherPromises);
+
+      // Update state with all teachers' viewed resources
+      const newUserViewedResources: {[userId: string]: string[]} = {};
+      const newUserViewedTimetables: {[userId: string]: string[]} = {};
+
+      results.forEach(result => {
+        newUserViewedResources[result.teacherId] = result.viewedResourceIds;
+        newUserViewedTimetables[result.teacherId] = result.viewedTimetableIds;
+      });
+
+      setUserViewedResources(newUserViewedResources);
+      setUserViewedTimetables(newUserViewedTimetables);
+
+      console.log('Loaded viewed resources for all teachers:', {
+        userViewedResources: newUserViewedResources,
+        userViewedTimetables: newUserViewedTimetables
+      });
+    } catch (error) {
+      console.error('Error loading all teachers viewed resources:', error);
+    }
+  };
+
+  // Function to refresh viewed resources when needed (e.g., when admin adds new teacher)
+  const refreshAllTeachersViewedResources = async () => {
+    await loadAllTeachersViewedResources();
+  };
+
+  const markAllResourcesAsViewed = async (userId: string) => {
+    try {
+      const resourceFiles = resources.filter(r => r.category === 'resource');
+      const resourceIds = resourceFiles.map(r => r.id);
+      
+      if (resourceIds.length === 0) return;
+
+      // Mark all resources as viewed in database
+      const viewedRecords = resourceIds.map(resourceId => ({
+        resource_id: resourceId,
+        user_id: userId
+      }));
+
+      const { error } = await supabase
+        .from(TABLES.VIEWED_RESOURCES)
+        .insert(viewedRecords);
+
+      if (error) throw error;
+
+      // Update local state
+      setUserViewedResources(prev => ({
+        ...prev,
+        [userId]: [...(prev[userId] || []), ...resourceIds]
+      }));
+
+      console.log(`Marked all ${resourceIds.length} resources as viewed for user ${userId}`);
+    } catch (error) {
+      console.error('Error marking all resources as viewed:', error);
+      throw error;
+    }
+  };
+
+  const markAllTimetablesAsViewed = async (userId: string) => {
+    try {
+      const timetableFiles = resources.filter(r => r.category === 'timetable');
+      const timetableIds = timetableFiles.map(r => r.id);
+      
+      if (timetableIds.length === 0) return;
+
+      // Mark all timetables as viewed in database
+      const viewedRecords = timetableIds.map(timetableId => ({
+        resource_id: timetableId,
+        user_id: userId
+      }));
+
+      const { error } = await supabase
+        .from(TABLES.VIEWED_TIMETABLES)
+        .insert(viewedRecords);
+
+      if (error) throw error;
+
+      // Update local state
+      setUserViewedTimetables(prev => ({
+        ...prev,
+        [userId]: [...(prev[userId] || []), ...timetableIds]
+      }));
+
+      console.log(`Marked all ${timetableIds.length} timetables as viewed for user ${userId}`);
+    } catch (error) {
+      console.error('Error marking all timetables as viewed:', error);
+      throw error;
+    }
+  };
+
+  const markAllAnnouncementsAsRead = async () => {
+    try {
+      const unreadAnnouncements = announcements.filter(a => !a.isRead);
+      
+      if (unreadAnnouncements.length === 0) return;
+
+      const announcementIds = unreadAnnouncements.map(a => a.id);
+
+      // Mark all announcements as read in database
+      const { error } = await supabase
+        .from(TABLES.ANNOUNCEMENTS)
+        .update({ is_read: true })
+        .in('id', announcementIds);
+
+      if (error) throw error;
+
+      // Update local state
+      setAnnouncements(prev => 
+        prev.map(announcement => 
+          announcementIds.includes(announcement.id)
+            ? { ...announcement, isRead: true }
+            : announcement
+        )
+      );
+
+      console.log(`Marked all ${announcementIds.length} announcements as read`);
+    } catch (error) {
+      console.error('Error marking all announcements as read:', error);
+      throw error;
+    }
+  };
+
+  const getUnreadCounts = (userRole?: string, userId?: string) => {
     let relevantAnnouncements = announcements;
     
     // Filter announcements based on user role
@@ -659,14 +871,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       relevantAnnouncements = announcements.filter(a => a.target === 'public' || a.target === 'both');
     }
     
+    // Get user-specific viewed resources
+    const userViewedResourceIds = userId ? userViewedResources[userId] || [] : [];
+    const userViewedTimetableIds = userId ? userViewedTimetables[userId] || [] : [];
+    
+    const unviewedResources = resources.filter(r => r.category === 'resource' && !userViewedResourceIds.includes(r.id));
+    const unviewedTimetables = resources.filter(r => r.category === 'timetable' && !userViewedTimetableIds.includes(r.id));
+    
+    // Debug logging
+    if (userRole === 'teacher' && userId) {
+      console.log('Teacher unread counts:', {
+        userId,
+        totalResources: resources.filter(r => r.category === 'resource').length,
+        viewedResources: userViewedResourceIds.length,
+        unviewedResources: unviewedResources.length,
+        totalTimetables: resources.filter(r => r.category === 'timetable').length,
+        viewedTimetables: userViewedTimetableIds.length,
+        unviewedTimetables: unviewedTimetables.length,
+        allUserViewedResources: userViewedResources,
+        allUserViewedTimetables: userViewedTimetables
+      });
+    }
+    
     return {
       announcements: relevantAnnouncements.filter(a => !a.isRead).length,
       suggestions: suggestions.filter(s => !s.isRead).length,
       uploads: uploads.filter(u => u.status === 'pending').length,
       admissions: admissions.filter(a => a.status === 'pending').length,
       attendance: attendanceRecords.length, // Show total attendance records for admin
-      resources: resources.filter(r => r.category === 'resource' && !viewedResources.includes(r.id)).length, // Show unviewed resources for teachers
-      timetable: resources.filter(r => r.category === 'timetable' && !viewedTimetables.includes(r.id)).length // Show unviewed timetable resources for teachers
+      resources: unviewedResources.length, // Show unviewed resources for teachers
+      timetable: unviewedTimetables.length // Show unviewed timetable resources for teachers
     };
   };
 
@@ -707,7 +941,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       getPublicAnnouncements,
       getUnreadPublicAnnouncements,
       markResourceViewed,
-      markTimetableViewed
+      markTimetableViewed,
+      loadUserViewedResources,
+      loadAllTeachersViewedResources,
+      refreshAllTeachersViewedResources,
+      markAllResourcesAsViewed,
+      markAllTimetablesAsViewed,
+      markAllAnnouncementsAsRead
     }}>
       {children}
     </DataContext.Provider>

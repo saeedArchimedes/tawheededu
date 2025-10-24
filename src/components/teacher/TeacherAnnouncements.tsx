@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Bell, Calendar, User } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
 
 const TeacherAnnouncements: React.FC = () => {
-  const { announcements, markAnnouncementRead } = useData();
+  const { announcements, markAnnouncementRead, markAllAnnouncementsAsRead } = useData();
+  const [isMarkingAll, setIsMarkingAll] = useState(false);
 
   // Filter announcements for teachers
   const teacherAnnouncements = announcements
@@ -19,6 +20,19 @@ const TeacherAnnouncements: React.FC = () => {
     });
   }, [unreadAnnouncements, markAnnouncementRead]);
 
+  const handleReadAll = async () => {
+    setIsMarkingAll(true);
+    try {
+      await markAllAnnouncementsAsRead();
+      alert('All announcements have been marked as read!');
+    } catch (error) {
+      console.error('Error marking all announcements as read:', error);
+      alert('Failed to mark all announcements as read. Please try again.');
+    } finally {
+      setIsMarkingAll(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -29,6 +43,16 @@ const TeacherAnnouncements: React.FC = () => {
   <p className="text-gray-600 mt-1">
     Stay updated with important news and information
   </p>
+  <div className="flex justify-center mt-4">
+    <button
+      onClick={handleReadAll}
+      disabled={isMarkingAll}
+      className="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700 transition-colors duration-200 flex items-center space-x-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      <Bell className="h-4 w-4" />
+      <span>{isMarkingAll ? 'Marking All...' : 'Read All'}</span>
+    </button>
+  </div>
 </div>
 
       {/* Stats */}

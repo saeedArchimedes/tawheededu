@@ -1,21 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Image, Download, Search, Filter, Eye, X } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 const TeacherResources: React.FC = () => {
-  const { resources, markResourceViewed } = useData();
+  const { resources, markResourceViewed, markAllResourcesAsViewed } = useData();
+  const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'pdf' | 'image'>('all');
   const [viewingResource, setViewingResource] = useState<any>(null);
+  const [isMarkingAll, setIsMarkingAll] = useState(false);
 
   const resourceFiles = resources.filter(r => r.category === 'resource');
 
   // Auto-mark all resources as viewed when component mounts
   useEffect(() => {
-    resourceFiles.forEach(resource => {
-      markResourceViewed(resource.id);
-    });
-  }, [resourceFiles, markResourceViewed]);
+    if (currentUser?.id) {
+      resourceFiles.forEach(resource => {
+        markResourceViewed(resource.id, currentUser.id);
+      });
+    }
+  }, [resourceFiles, markResourceViewed, currentUser?.id]);
 
   const filteredResources = resourceFiles.filter(resource => {
     const matchesSearch = resource.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -53,6 +58,21 @@ const TeacherResources: React.FC = () => {
     setViewingResource(null);
   };
 
+  const handleReadAll = async () => {
+    if (!currentUser?.id) return;
+    
+    setIsMarkingAll(true);
+    try {
+      await markAllResourcesAsViewed(currentUser.id);
+      alert('All resources have been marked as viewed!');
+    } catch (error) {
+      console.error('Error marking all resources as viewed:', error);
+      alert('Failed to mark all resources as viewed. Please try again.');
+    } finally {
+      setIsMarkingAll(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -63,6 +83,16 @@ const TeacherResources: React.FC = () => {
   <p className="text-gray-600">
     Access teaching materials and resources uploaded by admin
   </p>
+  <div className="flex justify-center mt-4">
+    <button
+      onClick={handleReadAll}
+      disabled={isMarkingAll}
+      className="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700 transition-colors duration-200 flex items-center space-x-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      <FileText className="h-4 w-4" />
+      <span>{isMarkingAll ? 'Marking All...' : 'Read All'}</span>
+    </button>
+  </div>
 </div>
 
 

@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Calendar, Download, FileText, Image, Eye, X } from 'lucide-react';
 import { useData } from '@/contexts/DataContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 const TeacherTimetable: React.FC = () => {
-  const { resources, markTimetableViewed } = useData();
+  const { resources, markTimetableViewed, markAllTimetablesAsViewed } = useData();
+  const { currentUser } = useAuth();
   const [viewingTimetable, setViewingTimetable] = useState<any>(null);
+  const [isMarkingAll, setIsMarkingAll] = useState(false);
 
   const timetables = resources
     .filter(r => r.category === 'timetable')
@@ -12,10 +15,12 @@ const TeacherTimetable: React.FC = () => {
 
   // Auto-mark all timetables as viewed when component mounts
   useEffect(() => {
-    timetables.forEach(timetable => {
-      markTimetableViewed(timetable.id);
-    });
-  }, [timetables, markTimetableViewed]);
+    if (currentUser?.id) {
+      timetables.forEach(timetable => {
+        markTimetableViewed(timetable.id, currentUser.id);
+      });
+    }
+  }, [timetables, markTimetableViewed, currentUser?.id]);
 
   const handleDownload = (timetable: any) => {
     try {
@@ -41,6 +46,21 @@ const TeacherTimetable: React.FC = () => {
     setViewingTimetable(null);
   };
 
+  const handleReadAll = async () => {
+    if (!currentUser?.id) return;
+    
+    setIsMarkingAll(true);
+    try {
+      await markAllTimetablesAsViewed(currentUser.id);
+      alert('All timetables have been marked as viewed!');
+    } catch (error) {
+      console.error('Error marking all timetables as viewed:', error);
+      alert('Failed to mark all timetables as viewed. Please try again.');
+    } finally {
+      setIsMarkingAll(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -51,6 +71,16 @@ const TeacherTimetable: React.FC = () => {
         <p className="text-gray-600 mt-1">
           Access and download current class schedules and timetables
         </p>
+        <div className="flex justify-center mt-4">
+          <button
+            onClick={handleReadAll}
+            disabled={isMarkingAll}
+            className="bg-pink-600 text-white px-4 py-2 rounded-lg hover:bg-pink-700 transition-colors duration-200 flex items-center space-x-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Calendar className="h-4 w-4" />
+            <span>{isMarkingAll ? 'Marking All...' : 'Read All'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
