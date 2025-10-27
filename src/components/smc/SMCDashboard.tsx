@@ -164,9 +164,9 @@ const SMCDashboard: React.FC<SMCDashboardProps> = ({ onLogout }) => {
                   .map((record) => (
                     <div key={record.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                       <div className="flex items-center space-x-4">
-                        <div className={`w-3 h-3 rounded-full ${
-                          record.status === 'on-time' ? 'bg-green-500' : 'bg-red-500'
-                        }`} />
+                        <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                          {record.teacherUsername}
+                        </div>
                         <div>
                           <h5 className="font-medium text-gray-900">{record.teacherName}</h5>
                           <p className="text-sm text-gray-500">Signed in at {record.time}</p>

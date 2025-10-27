@@ -21,6 +21,7 @@ export interface AttendanceRecord {
   id: string;
   teacherId: string;
   teacherName: string;
+  teacherUsername: string;
   date: string;
   time: string;
   status: 'on-time' | 'late';

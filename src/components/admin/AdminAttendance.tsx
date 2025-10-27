@@ -122,11 +122,9 @@ const AdminAttendance: React.FC = () => {
               {dailyAttendance.map((record) => (
                 <div key={record.id} className="px-6 py-4 flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <div
-                      className={`w-3 h-3 rounded-full ${
-                        record.status === 'on-time' ? 'bg-green-500' : 'bg-red-500'
-                      }`}
-                    />
+                    <div className="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-sm font-medium">
+                      {record.teacherUsername}
+                    </div>
                     <div>
                       <h5 className="font-medium text-gray-900">{record.teacherName}</h5>
                       <div className="flex items-center space-x-4 text-sm text-gray-500">
@@ -184,11 +182,9 @@ const AdminAttendance: React.FC = () => {
                         key={record.id}
                         className="flex items-center space-x-3 p-3 bg-pink-50 rounded-lg"
                       >
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            record.status === 'on-time' ? 'bg-green-500' : 'bg-red-500'
-                          }`}
-                        />
+                        <div className="bg-pink-100 text-pink-800 px-2 py-1 rounded-full text-xs font-medium">
+                          {record.teacherUsername}
+                        </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">
                             {record.teacherName}

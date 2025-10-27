@@ -160,7 +160,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAnnouncements(transformedAnnouncements);
       setSuggestions(suggestionsResult.data || []);
       setAdmissions(admissionsResult.data || []);
-      setAttendanceRecords(attendanceResult.data || []);
+      
+      // Transform database fields to match AttendanceRecord interface
+      const transformedAttendanceRecords = (attendanceResult.data || []).map((record: any) => ({
+        id: record.id,
+        teacherId: record.teacher_id,
+        teacherName: record.teacher_name,
+        teacherUsername: record.teacher_username,
+        date: record.date,
+        time: record.time,
+        status: record.status,
+        location: record.location
+      }));
+      setAttendanceRecords(transformedAttendanceRecords);
+      
       setViewedResources(viewedResourcesResult.data?.map(v => v.resource_id) || []);
       setViewedTimetables(viewedTimetablesResult.data?.map(v => v.resource_id) || []);
     } catch (error) {
@@ -604,6 +617,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newRecord = {
         teacher_id: record.teacherId,
         teacher_name: record.teacherName,
+        teacher_username: record.teacherUsername,
         date: record.date,
         time: record.time,
         status: record.status,
@@ -622,6 +636,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: data.id,
         teacherId: data.teacher_id,
         teacherName: data.teacher_name,
+        teacherUsername: data.teacher_username,
         date: data.date,
         time: data.time,
         status: data.status,

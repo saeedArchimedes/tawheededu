@@ -58,6 +58,7 @@ const TeacherAttendance: React.FC = () => {
           addAttendanceRecord({
             teacherId: currentUser.id,
             teacherName: currentUser.name,
+            teacherUsername: currentUser.username,
             date: today,
             time: currentTime,
             status: isTeacherLate ? 'late' : 'on-time',
